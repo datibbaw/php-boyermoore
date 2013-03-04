@@ -112,9 +112,6 @@ static void php_boyermoore_needle_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
 PHP_MINIT_FUNCTION(boyermoore)
 {
 	le_boyermoore_needle = zend_register_list_destructors_ex(php_boyermoore_needle_dtor, NULL, PHP_BOYERMOORE_NEEDLE_RES_NAME, module_number);
-	/* If you have INI entries, uncomment these lines 
-	REGISTER_INI_ENTRIES();
-	*/
 	return SUCCESS;
 }
 /* }}} */
@@ -123,9 +120,6 @@ PHP_MINIT_FUNCTION(boyermoore)
  */
 PHP_MSHUTDOWN_FUNCTION(boyermoore)
 {
-	/* uncomment this line if you have INI entries
-	UNREGISTER_INI_ENTRIES();
-	*/
 	return SUCCESS;
 }
 /* }}} */
@@ -155,10 +149,6 @@ PHP_MINFO_FUNCTION(boyermoore)
 	php_info_print_table_start();
 	php_info_print_table_header(2, "boyermoore support", "enabled");
 	php_info_print_table_end();
-
-	/* Remove comments if you have entries in php.ini
-	DISPLAY_INI_ENTRIES();
-	*/
 }
 /* }}} */
 
@@ -267,18 +257,34 @@ PHP_FUNCTION(boyermoore_indexof)
         zval *pattern;
         char *haystack;
         int haystack_len;
+        long offset = 0;
 
         char *found;
 
-        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &haystack, &haystack_len, &pattern) == FAILURE) {
+        if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz|l", &haystack, &haystack_len, &pattern, &offset) == FAILURE) {
                 return;
+        }
+
+        if (offset < 0 || offset > haystack_len) {
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "Offset not contained in string");
+            RETURN_FALSE;
         }
 
         if (Z_TYPE_P(pattern) == IS_RESOURCE) {
             ZEND_FETCH_RESOURCE(needle, php_boyermoore_needle*, &pattern, -1, PHP_BOYERMOORE_NEEDLE_RES_NAME, le_boyermoore_needle);
-            found = (char *)boyer_moore_studied((uint8_t *)haystack, haystack_len, (uint8_t *)needle->needle, needle->needle_len, needle->delta1, needle->delta2);
+            if (!needle) {
+                RETURN_FALSE;
+            }
+            found = (char *)boyer_moore_studied((uint8_t *)haystack + offset, haystack_len - offset, (uint8_t *)needle->needle, needle->needle_len, needle->delta1, needle->delta2);
+        } else if (Z_TYPE_P(pattern) == IS_STRING) {
+            if (!Z_STRLEN_P(pattern)) {
+                php_error_docref(NULL TSRMLS_CC, E_WARNING, "Empty needle");
+                RETURN_FALSE;
+            }
+            found = (char *)boyer_moore((uint8_t *)haystack + offset, haystack_len - offset, (uint8_t *)Z_STRVAL_P(pattern), Z_STRLEN_P(pattern));
         } else {
-            found = (char *)boyer_moore((uint8_t *)haystack, haystack_len, (uint8_t *)Z_STRVAL_P(pattern), Z_STRLEN_P(pattern));
+            php_error_docref(NULL TSRMLS_CC, E_WARNING, "Needle must be a string or studied pattern");
+            RETURN_FALSE;
         }
 
         if (found) {
