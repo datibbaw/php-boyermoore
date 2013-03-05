@@ -84,13 +84,6 @@ PHP_INI_END()
 
 /* {{{ php_boyermoore_init_globals
  */
-/* Uncomment this function if you have INI entries
-static void php_boyermoore_init_globals(zend_boyermoore_globals *boyermoore_globals)
-{
-	boyermoore_globals->global_value = 0;
-	boyermoore_globals->global_string = NULL;
-}
-*/
 /* }}} */
 
 static void php_boyermoore_needle_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
@@ -152,31 +145,33 @@ PHP_MINFO_FUNCTION(boyermoore)
 }
 /* }}} */
 
+/* {{{ make_delta1(delta1, pat, patlen)
+ */
 static void make_delta1(int *delta1, uint8_t *pat, int32_t patlen)
 {
-        int i;
-        for (i=0; i < ALPHABET_LEN; i++) {
-                delta1[i] = NOT_FOUND;
-        }
-        for (i=0; i < patlen-1; i++) {
-                delta1[pat[i]] = patlen-1 - i;
-        }
-}
+	register int patmax = patlen-1;
+	int i;
 
+	for (i=0; i != ALPHABET_LEN; i++) {
+		delta1[i] = NOT_FOUND;
+	}
+
+	for (i=0; i < patmax; i++) {
+		delta1[pat[i]] = patmax - i;
+	}
+}
+/* }}} */
+
+/* {{{ is_prefix(word, wordlen, pos)
+ */
 static int is_prefix(uint8_t *word, int wordlen, int pos)
 {
-        int i;
-        int suffixlen = wordlen - pos;
-
-        // could also use the strncmp() library function here
-        for (i = 0; i < suffixlen; i++) {
-                if (word[i] != word[pos+i]) {
-                        return 0;
-                }
-        }
-        return 1;
+	return !memcmp(word, word + pos, wordlen - pos);
 }
+/* }}} */
 
+/* {{{ suffix_length(word, wordlen, pos)
+ */
 static int suffix_length(uint8_t *word, int wordlen, int pos)
 {
         int i;
@@ -187,29 +182,36 @@ static int suffix_length(uint8_t *word, int wordlen, int pos)
 
         return i;
 }
+/* }}} */
 
+/* {{{ make_delta2(delta2, pat, patlen) 
+ * */
 static void make_delta2(int *delta2, uint8_t *pat, int32_t patlen)
 {
-        int p;
-        int last_prefix_index = patlen-1;
+	register int patmax = patlen-1;
+	int p;
+	int last_prefix_index = patmax;
 
-        // first loop
-    for (p=patlen-1; p>=0; p--) {
-        if (is_prefix(pat, patlen, p+1)) {
-            last_prefix_index = p+1;
-        }
-        delta2[p] = last_prefix_index + (patlen-1 - p);
-    }
+	// first loop
+	for (p=patmax; p>=0; p--) {
+		if (is_prefix(pat, patlen, p+1)) {
+			last_prefix_index = p+1;
+		}
+		delta2[p] = last_prefix_index + (patmax - p);
+	}
 
-    // second loop
-    for (p=0; p < patlen-1; p++) {
-        int slen = suffix_length(pat, patlen, p);
-        if (pat[p - slen] != pat[patlen-1 - slen]) {
-            delta2[patlen-1 - slen] = patlen-1 - p + slen;
-        }
-    }
+	// second loop
+	for (p=0; p < patmax; p++) {
+		int slen = suffix_length(pat, patlen, p);
+		if (pat[p - slen] != pat[patmax - slen]) {
+			delta2[patmax - slen] = patmax - p + slen;
+		}
+	}
 }
+/* }}} */
 
+/* {{{ boyer_moore_studied(string, stringlen, pat, patlen, delta1, delta2)
+ */
 static uint8_t* boyer_moore_studied(uint8_t *string, uint32_t stringlen, uint8_t *pat, uint32_t patlen, int *delta1, int *delta2)
 {
     register int patmax;
@@ -233,8 +235,10 @@ static uint8_t* boyer_moore_studied(uint8_t *string, uint32_t stringlen, uint8_t
 
     return NULL;
 }
+/* }}} */
 
-
+/* {{{ boyer_moore(string, stringlen, pat, patlen)
+ */
 static uint8_t* boyer_moore(uint8_t *string, uint32_t stringlen, uint8_t *pat, uint32_t patlen)
 {
     int delta1[ALPHABET_LEN];
@@ -248,8 +252,9 @@ static uint8_t* boyer_moore(uint8_t *string, uint32_t stringlen, uint8_t *pat, u
     free(delta2);
     return found;
 }
+/* }}} */
 
-/* {{{ proto int boyermoore_indexof(string haystack, string needle)
+/* {{{ proto int boyermoore_indexof(string haystack, string|resource needle)
    Return position of needle in haystack or false */
 PHP_FUNCTION(boyermoore_indexof)
 {
@@ -295,6 +300,8 @@ PHP_FUNCTION(boyermoore_indexof)
 }
 /* }}} */
 
+/* {{{ proto resource boyermoore_study(needle)
+ */
 PHP_FUNCTION(boyermoore_study)
 {
 	char *pattern;
@@ -315,6 +322,8 @@ PHP_FUNCTION(boyermoore_study)
 
 	ZEND_REGISTER_RESOURCE(return_value, needle, le_boyermoore_needle);
 }
+/* }}} */
+
 
 /* The previous line is meant for vim and emacs, so it can correctly fold and 
    unfold functions in source code. See the corresponding marks just before 

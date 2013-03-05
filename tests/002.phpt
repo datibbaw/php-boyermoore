@@ -26,5 +26,7 @@ bool(false)
 Warning: boyermoore_indexof(): Empty needle in %s on line %d
 bool(false)
 bool(false)
+
 Warning: boyermoore_indexof(): supplied resource is not a valid Boyer-Moore Studied Needle resource in %s on line %d
 bool(false)
+
