@@ -242,19 +242,19 @@ static uint8_t* boyer_moore_studied(uint8_t *string, uint32_t stringlen, uint8_t
 static uint8_t* boyer_moore(uint8_t *string, uint32_t stringlen, uint8_t *pat, uint32_t patlen)
 {
     int delta1[ALPHABET_LEN];
-    int *delta2 = malloc(patlen * sizeof(int));
+    int *delta2 = emalloc(patlen * sizeof(int));
 
     make_delta1(delta1, pat, patlen);
     make_delta2(delta2, pat, patlen);
 
     uint8_t *found = boyer_moore_studied(string, stringlen, pat, patlen, delta1, delta2);
 
-    free(delta2);
+    efree(delta2);
     return found;
 }
 /* }}} */
 
-/* {{{ proto int boyermoore_indexof(string haystack, string|resource needle)
+/* {{{ proto int boyermoore_indexof(string haystack, string|resource needle [, int offset])
    Return position of needle in haystack or false */
 PHP_FUNCTION(boyermoore_indexof)
 {

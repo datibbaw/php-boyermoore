@@ -15,6 +15,10 @@ var_dump(boyermoore_indexof(null, '1'));
 $f = fopen(__FILE__, 'r');
 var_dump(boyermoore_indexof('', $f));
 
+var_dump(boyermoore_indexof('123', '23', -1));
+
+var_dump(boyermoore_indexof('123', '23', 3));
+
 ?>
 --EXPECTF--
 Warning: boyermoore_study() expects parameter 1 to be string, array given in %s on line %d
@@ -30,3 +34,6 @@ bool(false)
 Warning: boyermoore_indexof(): supplied resource is not a valid Boyer-Moore Studied Needle resource in %s on line %d
 bool(false)
 
+Warning: boyermoore_indexof(): Offset not contained in string in /home/tjerk/work/php/php-boyermoore/tests/002.php on line 13
+bool(false)
+bool(false)
